@@ -15,7 +15,6 @@ import org.json.JSONObject;
 import org.json.JSONException;
 
 public class MapUtil {
-
     public static JSONObject toJSONObject(ReadableMap readableMap) throws JSONException {
         JSONObject jsonObject = new JSONObject();
 
@@ -109,7 +108,7 @@ public class MapUtil {
         Iterator iterator = map.entrySet().iterator();
 
         while (iterator.hasNext()) {
-            Map.Entry pair = (Map.Entry)iterator.next();
+            Map.Entry pair = (Map.Entry) iterator.next();
             Object value = pair.getValue();
 
             if (value == null) {

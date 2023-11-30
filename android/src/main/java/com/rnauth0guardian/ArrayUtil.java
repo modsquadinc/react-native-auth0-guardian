@@ -12,7 +12,6 @@ import org.json.JSONObject;
 import org.json.JSONException;
 
 public class ArrayUtil {
-
     public static JSONArray toJSONArray(ReadableArray readableArray) throws JSONException {
         JSONArray jsonArray = new JSONArray();
 

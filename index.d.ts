@@ -1,15 +1,21 @@
-export function initialize(auth0Domain:string): Promise<boolean>;
+/* eslint-disable @typescript-eslint/no-extraneous-class */
+declare module 'react-native-auth0-guardian' {
+  export default class Auth0Guardian {
+    static constructor(auth0Domain: string): void
 
-export function enroll(enrollmentURI:string, deviceToken: string): Promise<string>;
+    static initialize(auth0Domain: string): Promise<boolean>
 
-export function unenroll(): Promise<boolean>;
+    static enroll(enrollmentURI: string, deviceToken: string): Promise<string>
 
-export function getTOTP(): Promise<string>
+    // noinspection SpellCheckingInspection
+    static unenroll(): Promise<boolean>
 
-export function allow(notificationData: { [key:string]:string }): Promise<boolean>
+    static getTOTP(): Promise<string>
 
-export function reject(notificationData: { [key:string]:string }): Promise<boolean>
-declare namespace Auth0Guardian {
+    static allow(notificationData: object): Promise<boolean>
+
+    static reject(notificationData: object): Promise<boolean>
+  }
 }
 
 export default Auth0Guardian

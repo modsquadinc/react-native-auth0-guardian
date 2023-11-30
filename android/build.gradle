@@ -14,13 +14,14 @@ apply plugin: 'com.android.library'
 
 android {
     compileSdkVersion 28
-    buildToolsVersion "28.0.1"
+    buildToolsVersion '28.0.3'
 
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 22
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
+        signingConfig signingConfigs.debug
     }
     lintOptions {
         abortOnError false
@@ -35,7 +36,7 @@ repositories {
 
 dependencies {
     implementation 'com.facebook.react:react-native:+'
-    implementation 'com.auth0.android:guardian:0.4.0'
+    implementation 'com.auth0.android:guardian:0.7.0'
     implementation 'com.google.code.gson:gson:2.8.5'
+    implementation 'com.facebook.react:react-android:0.72.2'
 }
-  

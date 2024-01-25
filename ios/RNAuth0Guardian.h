@@ -8,4 +8,3 @@
 @interface RNAuth0Guardian : NSObject <RCTBridgeModule>
 
 @end
-  

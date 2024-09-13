@@ -7,7 +7,6 @@
 //
 
 
-
 package com.rnauth0guardian;
 
 import android.content.SharedPreferences;
@@ -19,12 +18,15 @@ import com.auth0.android.guardian.sdk.Enrollment;
 import com.auth0.android.guardian.sdk.Notification;
 import com.auth0.android.guardian.sdk.ParcelableNotification;
 import com.auth0.android.guardian.sdk.networking.Callback;
+import com.auth0.android.guardian.sdk.Guardian;
+
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
-import com.auth0.android.guardian.sdk.Guardian;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.Arguments;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -32,9 +34,9 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
-import static android.content.Context.MODE_PRIVATE;
-
 import androidx.annotation.NonNull;
+
+import static android.content.Context.MODE_PRIVATE;
 
 public class RNAuth0GuardianModule extends ReactContextBaseJavaModule {
 
@@ -55,6 +57,25 @@ public class RNAuth0GuardianModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void initialize(String domain, Promise promise) {
+        Uri url = Uri.parse("https://" + domain + "/appliance-mfa");
+
+        try {
+            guardian = new Guardian.Builder()
+                    .url(url)
+                    .build();
+
+            enrollment = getEnrollment();
+
+            promise.resolve(true);
+
+            Log.i("SAVED ENROLLMENT", enrollment.toJSON());
+        } catch (Exception err) {
+            promise.reject(err);
+        }
+    }
+
+    @ReactMethod
     public void allow(ReadableMap data, final Promise promise) {
         Map parsedData = MapUtil.toMap(data);
         ParcelableNotification notification = Guardian.parseNotification(parsedData);
@@ -62,20 +83,20 @@ public class RNAuth0GuardianModule extends ReactContextBaseJavaModule {
         try {
             if (enrollment != null) {
                 guardian
-                    .allow(notification, enrollment)
-                    .start(new Callback<Void>() {
-                        @Override
-                        public void onSuccess(Void response) {
-                            Log.i(TAG, "ALLOWED SUCCESSFULLY");
-                            promise.resolve(true);
-                        }
+                        .allow(notification, enrollment)
+                        .start(new Callback<Void>() {
+                            @Override
+                            public void onSuccess(Void response) {
+                                Log.i(TAG, "ALLOWED SUCCESSFULLY");
+                                promise.resolve(true);
+                            }
 
-                        @Override
-                        public void onFailure(Throwable exception) {
-                            Log.e(TAG, "ALLOW FAILED!", exception);
-                            promise.reject(exception);
-                        }
-                    });
+                            @Override
+                            public void onFailure(Throwable exception) {
+                                Log.e(TAG, "ALLOW FAILED!", exception);
+                                promise.reject(exception);
+                            }
+                        });
             } else {
                 promise.reject(DEVICE_NOT_ENROLLED_EXCEPTION);
             }
@@ -95,21 +116,21 @@ public class RNAuth0GuardianModule extends ReactContextBaseJavaModule {
 
             if (keyPair != null) {
                 guardian
-                    .enroll(enrollmentURI, device, keyPair)
-                    .start(new Callback<Enrollment>() {
-                        @Override
-                        public void onSuccess(Enrollment response) {
-                            Log.i(TAG, "ENROLLED SUCCESSFULLY!");
-                            promise.resolve(response.getSecret());
-                            saveEnrollment(response);
-                        }
+                        .enroll(enrollmentURI, device, keyPair)
+                        .start(new Callback<Enrollment>() {
+                            @Override
+                            public void onSuccess(Enrollment response) {
+                                Log.i(TAG, "ENROLLED SUCCESSFULLY!");
+                                promise.resolve(response.getSecret());
+                                saveEnrollment(response);
+                            }
 
-                        @Override
-                        public void onFailure(Throwable exception) {
-                            Log.i(TAG, "ENROLL FAILED!");
-                            promise.reject(exception);
-                        }
-                    });
+                            @Override
+                            public void onFailure(Throwable exception) {
+                                Log.i(TAG, "ENROLL FAILED!");
+                                promise.reject(exception);
+                            }
+                        });
             }
         } catch (Exception err) {
             promise.reject(err);
@@ -139,22 +160,26 @@ public class RNAuth0GuardianModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void initialize(String domain, Promise promise) {
-        Uri url = Uri.parse("https://" + domain + "/appliance-mfa");
-
+    public void device(Promise promise) {
         try {
-            guardian = new Guardian.Builder()
-                           .url(url)
-                           .build();
+            if (enrollment != null) {
+                String totpCode = Guardian.getOTPCode(enrollment);
+                WritableMap deviceData = Arguments.createMap();
 
-            enrollment = getEnrollment();
+                deviceData.putString("id", enrollment.getId());
+                deviceData.putString("userId", enrollment.getUserId());
+                deviceData.putString("deviceToken", enrollment.getDeviceToken());
+                deviceData.putString("notificationToken", enrollment.getNotificationToken());
+                deviceData.putString("totp", totpCode);
 
-            promise.resolve(true);
-
-            Log.i("SAVED ENROLLMENT", enrollment.toJSON());
+                promise.resolve(deviceData);
+            } else {
+                promise.reject(DEVICE_NOT_ENROLLED_EXCEPTION);
+            }
         } catch (Exception err) {
             promise.reject(err);
         }
+
     }
 
     @ReactMethod
@@ -165,20 +190,20 @@ public class RNAuth0GuardianModule extends ReactContextBaseJavaModule {
 
             if (enrollment != null) {
                 guardian
-                    .reject(notification, enrollment)
-                    .start(new Callback<Void>() {
-                        @Override
-                        public void onSuccess(Void response) {
-                            Log.i(TAG, "REJECTED SUCCESSFULLY");
-                            promise.resolve(true);
-                        }
+                        .reject(notification, enrollment)
+                        .start(new Callback<Void>() {
+                            @Override
+                            public void onSuccess(Void response) {
+                                Log.i(TAG, "REJECTED SUCCESSFULLY");
+                                promise.resolve(true);
+                            }
 
-                        @Override
-                        public void onFailure(Throwable exception) {
-                            Log.e(TAG, "REJECT FAILED!", exception);
-                            promise.reject(exception);
-                        }
-                    });
+                            @Override
+                            public void onFailure(Throwable exception) {
+                                Log.e(TAG, "REJECT FAILED!", exception);
+                                promise.reject(exception);
+                            }
+                        });
             } else {
                 promise.reject(DEVICE_NOT_ENROLLED_EXCEPTION);
             }
@@ -189,24 +214,24 @@ public class RNAuth0GuardianModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void unenroll(final Promise promise) {
+    public void unEnroll(final Promise promise) {
         try {
             if (enrollment != null) {
                 guardian
-                    .delete(enrollment)
-                    .start(new Callback<Void>() {
-                        @Override
-                        public void onSuccess(Void response) {
-                            Log.i(TAG, "UNENROLLED SUCCESSFULLY");
-                            promise.resolve(true);
-                        }
+                        .delete(enrollment)
+                        .start(new Callback<Void>() {
+                            @Override
+                            public void onSuccess(Void response) {
+                                Log.i(TAG, "UNENROLLED SUCCESSFULLY");
+                                promise.resolve(true);
+                            }
 
-                        @Override
-                        public void onFailure(Throwable exception) {
-                            Log.e(TAG, "UNENROLL FAILED!", exception);
-                            promise.reject(exception);
-                        }
-                    });
+                            @Override
+                            public void onFailure(Throwable exception) {
+                                Log.e(TAG, "UNENROLL FAILED!", exception);
+                                promise.reject(exception);
+                            }
+                        });
             } else {
                 promise.reject(DEVICE_NOT_ENROLLED_EXCEPTION);
             }

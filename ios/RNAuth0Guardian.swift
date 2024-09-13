@@ -79,11 +79,9 @@ extension UserDefaults {
    }
 }
 
-
 enum CustomError: Error {
     case runtimeError(String)
 }
-
 
 @objc(RNAuth0Guardian)
 class RNAuth0Guardian: NSObject {
@@ -94,13 +92,12 @@ class RNAuth0Guardian: NSObject {
     var enrolledDevice: EnrolledDevice?
     var signingKey: KeychainRSAPrivateKey?
 
-
     override init() {
         super.init()
     }
 
     @objc
-    func initialize(_ auth0Domain: NSString,  resolver resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+    func initialize(_ auth0Domain: NSString,  resolver resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) -> Void {
         let domain = auth0Domain as String
         let bundleID = Bundle.main.bundleIdentifier
         if domain.isEmpty {
@@ -110,11 +107,16 @@ class RNAuth0Guardian: NSObject {
             do {
                 let signingKey = try KeychainRSAPrivateKey.new(with: bundleID!)
                 self.signingKey = signingKey
-                 if let retrievedData = UserDefaults.standard.retrieve(object: CustomEnrolledDevice.self, fromKey: ENROLLED_DEVICE) ?? nil {
-                     let enrolledDevice = EnrolledDevice(id: retrievedData.id, userId: retrievedData.userId, deviceToken: retrievedData.deviceToken, notificationToken: retrievedData.notificationToken, signingKey: signingKey, totp: retrievedData.totp
-                        )
-                     self.enrolledDevice = enrolledDevice;
 
+                if let retrievedData = UserDefaults.standard.retrieve(object: CustomEnrolledDevice.self, fromKey: ENROLLED_DEVICE) ?? nil {
+                     self.enrolledDevice = EnrolledDevice(
+                       id: retrievedData.id,
+                       userId: retrievedData.userId,
+                       deviceToken: retrievedData.deviceToken,
+                       notificationToken: retrievedData.notificationToken,
+                       signingKey: signingKey,
+                       totp: retrievedData.totp
+                    )
                  }
 
                 resolve(true)
@@ -125,7 +127,7 @@ class RNAuth0Guardian: NSObject {
     }
 
     @objc
-    func allow(_ userInfo: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock){
+    func allow(_ userInfo: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
         if (self.enrolledDevice != nil) {
             if let notification = Guardian.notification(from: userInfo as! [AnyHashable : Any]) {
               Guardian
@@ -151,7 +153,7 @@ class RNAuth0Guardian: NSObject {
     }
 
     @objc
-    func device(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock){
+    func device(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) -> Void {
         if (self.enrolledDevice != nil) {
             let device = [
                 "id": self.enrolledDevice!.id,
@@ -162,12 +164,12 @@ class RNAuth0Guardian: NSObject {
             ]
             resolve(device)
         } else {
-            resolve(false)
+            reject("DEVICE_NOT_ENROLLED", "Device is not enrolled yet!", nil)
         }
     }
 
     @objc
-    func enroll(_ enrollmentURI: NSString, deviceToken: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock){
+    func enroll(_ enrollmentURI: NSString, deviceToken: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
         let enrollmentUri = enrollmentURI as String
         let deviceTokenString = deviceToken as String
         do {
@@ -209,7 +211,7 @@ class RNAuth0Guardian: NSObject {
     }
 
     @objc
-    func getTOTP(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock){
+    func getTOTP(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) -> Void {
         if (self.enrolledDevice != nil) {
             let totpInt: Int = try! Guardian.totp(parameters: self.enrolledDevice!.totp!).code();
             var totpString = String(totpInt)
@@ -225,7 +227,7 @@ class RNAuth0Guardian: NSObject {
     }
 
     @objc
-    func reject(_ userInfo: [AnyHashable : Any], resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    func reject(_ userInfo: [AnyHashable : Any], resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
         if let notification = Guardian.notification(from: userInfo) {
             Guardian
                 .authentication(forDomain: self.domain!, device: self.enrolledDevice!)
@@ -264,7 +266,29 @@ class RNAuth0Guardian: NSObject {
                 }
             }
     }
-  
+
+    @objc
+    func update(_ deviceToken: NSString, resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
+        Guardian
+            .api(forDomain: self.domain!)
+            .device(forEnrollmentId: self.enrolledDevice!.id, token: self.enrolledDevice!.deviceToken)
+            .update(localIdentifier: self.enrolledDevice!.localIdentifier,
+                    name: "iPhone",
+                    notificationToken: self.enrolledDevice!.notificationToken)
+
+            .start {
+                result in switch result {
+                    case .success(let response):
+                      resolve(response)
+                      break
+                    case .failure(let cause):
+                      print("UPDATE FAILED!", cause)
+                      reject("UPDATE_FAILED", "Update failed!", cause)
+                      break
+                }
+            }
+    }
+
     @objc
     static func requiresMainQueueSetup() -> Bool {
         return true
